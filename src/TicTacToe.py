@@ -58,8 +58,8 @@ class Board:
                     return ax[0]
 
         # check diagonals
-        d1 = self.board[(0,0), (1,1), (2,2)]
-        d2 = self.board[(0,2), (1,1), (2,0)]
+        d1 = self.board[[0, 1, 2], [0, 1, 2]]  # (0,0), (1,1), (2,2)
+        d2 = self.board[[0, 1, 2], [2, 1, 0]]  # (0,2), (1,1), (2,0)
         for ax in [d1, d2]:
             if ax[0] != 0 and np.all(ax == ax[0]):
                 return ax[0]
@@ -68,7 +68,13 @@ class Board:
         return 0
 
     def __eq__(self, other):
-        r1 = np.rot90(self.board)
+        """
+        check equality, up to rotational symmetry
+        :param other: board to compare against
+        :return: self.board == other OR a rotation of self.board equals other
+        """
+        r0 = self.board
+        r1 = np.rot90(r0)
         r2 = np.rot90(r1)
         r3 = np.rot90(r2)
-        return self.board == r1 or self.board == r2 or self.board == r3
+        return other in [r0, r1, r2, r3]
