@@ -53,18 +53,14 @@ class MCPlotter:
             self.wrax.set_title('Outcome Rates')
             self.wrax.legend()
         if self.plot_openers:
-            self.openplot, self.openax = plt.subplots(2)
+            self.openplot, self.openax = plt.subplots()
             # dummy plots for legend
-            self.openax[0].plot(self.opener_value[self.corner], color="red", label="Corner")
-            self.openax[0].plot(self.opener_value[self.centre], color="green", label="Centre")
-            self.openax[0].plot(self.opener_value[self.side], color="blue", label="Side")
-            self.openax[1].plot(self.opener_visits[self.corner], color="red", label="Corner")
-            self.openax[1].plot(self.opener_visits[self.centre], color="green", label="Centre")
-            self.openax[1].plot(self.opener_visits[self.side], color="blue", label="Side")
-            self.openax[0].set_title('Opener Value')
-            self.openax[0].legend()
-            self.openax[1].set_title('Opener Visits')
-            self.openax[1].legend()
+            self.openax.plot(self.opener_value[self.corner], color="red", label="Corner")
+            self.openax.plot(self.opener_value[self.centre], color="green", label="Centre")
+            self.openax.plot(self.opener_value[self.side], color="blue", label="Side")
+            self.openax.set_title('Opener Value')
+            self.openax.legend()
+
 
     def plt_init(self):
         # make pyplot print to external backend
@@ -126,15 +122,10 @@ class MCPlotter:
             fig.canvas.flush_events()
 
         if self.plot_openers:
-            fig, axs = (self.openplot, self.openax)
-            axs[0].plot(self.opener_value[self.corner], color="red", label="Corner")
-            axs[0].plot(self.opener_value[self.centre], color="green", label="Centre")
-            axs[0].plot(self.opener_value[self.side], color="blue", label="Side")
-            axs[0].set_title('Opener Values')
-
-            axs[1].plot(self.opener_visits[self.corner], color="red", label="Corner")
-            axs[1].plot(self.opener_visits[self.centre], color="green", label="Centre")
-            axs[1].plot(self.opener_visits[self.side], color="blue", label="Side")
-            axs[1].set_title('Opener Visits')
+            fig, ax = (self.openplot, self.openax)
+            ax.plot(self.opener_value[self.corner], color="red", label="Corner")
+            ax.plot(self.opener_value[self.centre], color="green", label="Centre")
+            ax.plot(self.opener_value[self.side], color="blue", label="Side")
+            ax.set_title('Opener Values')
             fig.canvas.draw()
             fig.canvas.flush_events()

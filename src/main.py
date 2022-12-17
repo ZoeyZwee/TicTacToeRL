@@ -57,6 +57,13 @@ def monte_v_monte():
 
         # play a game
         # start with each opener evenly
+        match startermove:
+            case 1:
+                startermove = 2
+            case 2:
+                startermove = 5
+            case 5:
+                startermove = 1
         p1.play_move(startermove)
         game_log.append(board.copy())
         epsilon_move(p2)
@@ -86,7 +93,8 @@ def monte_v_monte():
 
         # logging
         games_played += 1
-        mcplot.log_and_plot(status)
+        if games_played > 3:
+            mcplot.log_and_plot(status)
 
         # print(status)
         # print("D  P1  P2")
