@@ -36,7 +36,7 @@ def human_v_human():
     print("If player 4 won that means a draw and you both suck")
 
 
-def monte_v_monte(alpha, gamma):
+def monte_v_monte():
     """
     Train two monte carlo AIs against each other.
     Agent 1 is always X, Agent 2 is always O.
@@ -87,8 +87,8 @@ def monte_v_monte(alpha, gamma):
 
 
         # update value fns
-        p1.update_value(game_log, status, gamma=gamma, alpha=alpha)
-        p2.update_value(game_log, status, gamma=gamma, alpha=alpha)
+        p1.update_value(game_log, status, gamma=GAMMA, alpha=ALPHA)
+        p2.update_value(game_log, status, gamma=GAMMA, alpha=ALPHA)
 
         # reset board
         board = Board()
@@ -109,7 +109,8 @@ def monte_v_monte(alpha, gamma):
 def epsilon_move(agent, epsilon):
     """
     get agent to play a move with epsilon chance of playing a random move
-    :param agent:
+    :param agent: agent which is playing the move
+    :param epsilon: chance we play a random move
     :return: RUNNING_STATE of game after executing move
     """
 
@@ -142,8 +143,10 @@ if __name__ == "__main__":
     options[int(str_in)]()
     while success is False:
         try:
-            options[int(str_in)]()
+            choice = options[int(str_in)]
             success = True
         except (TypeError, KeyError) as e:
             print("Invalid input:", e)
             str_in = input()
+    choice()
+    
