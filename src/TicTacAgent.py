@@ -84,7 +84,7 @@ class MonteCarloAgent:
                 # sometimes moves by the other player don't get initialized in our value fn
                 self.value[state] = random.uniform(-1, 1)
             # incorporate trajectory into average
-            self.value[state] = state.value[state] + alpha*(rtn-self.value[state])
+            self.value[state] = self.value[state] + alpha*(rtn-self.value[state])
 
 
 if __name__ == "__main__":
