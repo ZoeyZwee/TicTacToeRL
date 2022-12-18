@@ -11,7 +11,7 @@ class MCPlotter:
         # select plots
         self.plot_openers = True
         self.plot_winrates = True
-        self.plot_wins = True
+        self.plot_wins = False
 
         # objects
         self.p1 = p1
@@ -34,7 +34,6 @@ class MCPlotter:
         # opener logs
         self.openers = [self.corner, self.side, self.centre]
         self.opener_value = {self.corner: [], self.side: [], self.centre: []}
-        self.opener_visits = {self.corner: [], self.side: [], self.centre: []}
 
         if self.plot_wins:
             self.winplot, self.winax = plt.subplots()
@@ -43,6 +42,7 @@ class MCPlotter:
             self.winax.plot(self.win_log[0], color="red", label="Draws")
             self.winax.plot(self.win_log[1], color="green", label="P1 Wins")
             self.winax.plot(self.win_log[2], color="blue", label="P2 Wins")
+            self.winax.set_xlabel("Games played (hundreds)")
             self.winax.legend()
         if self.plot_winrates:
             self.wrplot, self.wrax = plt.subplots()
@@ -50,6 +50,7 @@ class MCPlotter:
             self.wrax.plot(self.winrates[0], color="red", label="Draw rate")
             self.wrax.plot(self.winrates[1], color="green", label="P1 Win rate")
             self.wrax.plot(self.winrates[2], color="blue", label="P2 Win rate")
+            self.wrax.set_xlabel("Games played (hundreds)")
             self.wrax.set_title('Outcome Rates')
             self.wrax.legend()
         if self.plot_openers:
@@ -58,9 +59,9 @@ class MCPlotter:
             self.openax.plot(self.opener_value[self.corner], color="red", label="Corner")
             self.openax.plot(self.opener_value[self.centre], color="green", label="Centre")
             self.openax.plot(self.opener_value[self.side], color="blue", label="Side")
+            self.openax.set_xlabel("Games played (hundreds)")
             self.openax.set_title('Opener Value')
             self.openax.legend()
-
 
     def plt_init(self):
         # make pyplot print to external backend
@@ -95,10 +96,8 @@ class MCPlotter:
                 self.win_log[i].append(self.wins[i])
             # openers
             for move in self.openers:
-                value = self.p1.value[move].value
-                visits = self.p1.value[move].visits
+                value = self.p1.value[move]
                 self.opener_value[move].append(value)
-                self.opener_visits[move].append(visits)
 
             self.make_plots()
 
@@ -126,6 +125,7 @@ class MCPlotter:
             ax.plot(self.opener_value[self.corner], color="red", label="Corner")
             ax.plot(self.opener_value[self.centre], color="green", label="Centre")
             ax.plot(self.opener_value[self.side], color="blue", label="Side")
+            ax.axhline(y=0, color='black', linestyle="dashed", dashes=(5, 2))
             ax.set_title('Opener Values')
             fig.canvas.draw()
             fig.canvas.flush_events()
