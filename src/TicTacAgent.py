@@ -3,10 +3,7 @@ An agent to learn and play tic tac toe via self play.
 """
 from TicTacToe import Board, GameStatus
 import random
-from collections import namedtuple
 import numpy as np
-
-StateValue = namedtuple("StateValue", ["value", "visits"])
 
 
 class MonteCarloAgent:
@@ -57,7 +54,7 @@ class MonteCarloAgent:
 
             # add state to value fn on first visit
             if next_state not in self.value.keys():
-                self.value[next_state] = StateValue(random.uniform(-1, 1), 0)
+                self.value[next_state] = random.uniform(-1, 1)
 
             move_value = self.value[next_state]
 
@@ -71,16 +68,23 @@ class MonteCarloAgent:
 
         return best_move
 
-    def update_value(self, states_visited, reward):
-        for state in states_visited:
+    def update_value(self, states_visited, reward, gamma, alpha):
+        """
+        Update the value function using the bellman equation
+        :param states_visited: list of Boards, corresponding to a single game
+        :param reward: +1 for p1 win, -1 for p2 win, 0 for draw
+        :param gamma: decay rate for rewards
+        :param alpha: learning rate
+        :return: None
+        """
+        for i, state in enumerate(states_visited):
+            decay_steps = len(states_visited)-i-1  # on last move we have len(game)==i, and we want 0 decay
+            rtn = reward * gamma**decay_steps  # decayed future reward (i.e. return)
             if state not in self.value.keys():
                 # sometimes moves by the other player don't get initialized in our value fn
-                self.value[state] = StateValue(random.uniform(-1,1), 0)
-            old_value = self.value[state].value
-            visits = self.value[state].visits
+                self.value[state] = random.uniform(-1, 1)
             # incorporate trajectory into average
-            new_value = (old_value*visits+reward)/(visits+1)
-            self.value[state] = StateValue(new_value, visits+1)
+            self.value[state] = state.value[state] + alpha*(rtn-self.value[state])
 
 
 if __name__ == "__main__":

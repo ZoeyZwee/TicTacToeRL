@@ -36,25 +36,28 @@ def human_v_human():
     print("If player 4 won that means a draw and you both suck")
 
 
-def monte_v_monte():
+def monte_v_monte(alpha, gamma):
     """
     Train two monte carlo AIs against each other.
     Agent 1 is always X, Agent 2 is always O.
     Init random Value Fn for both agents
+    :param
     :return:
     """
+
+    games_played = 0
+    epsilon = 1  # % chance of a random move. epsilon = 1/(k+1) where k is games played
 
     board = Board()
     p1 = MonteCarloAgent(1, board)
     p2 = MonteCarloAgent(2, board)
     mcplot = MCPlotter(p1, p2)
 
-    games_played = 0
     startermove = 1
+
+    plot = False  # only plot if we've seen all the start states (plotter code breaks otherwise)
     while True:
         game_log = []  # list of game states from THIS game
-        status = GameStatus.RUNNING
-
         # play a game
         # start with each opener evenly
         match startermove:
@@ -64,27 +67,28 @@ def monte_v_monte():
                 startermove = 5
             case 5:
                 startermove = 1
+                plot = True  # all start states seem from here on out
         p1.play_move(startermove)
         game_log.append(board.copy())
-        epsilon_move(p2)
+        epsilon_move(p2, epsilon)
         game_log.append(board.copy())
         while True:
             # p1 plays
-            status = epsilon_move(p1)
+            status = epsilon_move(p1, epsilon)
             game_log.append(board.copy())
             if status != GameStatus.RUNNING:
                 break
 
             # p2 plays
-            status = epsilon_move(p2)
+            status = epsilon_move(p2, epsilon)
             game_log.append(board.copy())
             if status != GameStatus.RUNNING:
                 break
 
+
         # update value fns
-        reward = REWARDS[status]
-        p1.update_value(game_log, reward)
-        p2.update_value(game_log, reward)
+        p1.update_value(game_log, status, gamma=gamma, alpha=alpha)
+        p2.update_value(game_log, status, gamma=gamma, alpha=alpha)
 
         # reset board
         board = Board()
@@ -92,41 +96,35 @@ def monte_v_monte():
         p2.new_game(board)
 
         # logging
-        games_played += 1
-        if games_played > 3:
+        if plot:
             mcplot.log_and_plot(status)
 
+        games_played += 1
+        epsilon = 1/(games_played+1)
         # print(status)
         # print("D  P1  P2")
         # print(win_log, f"P1 wr: {win_log[1]/sum(win_log):.3%}, P2 wr: {win_log[2]/sum(win_log):.3%}")
 
-        # update epsilon every 100 games
-        if games_played % EPSILON_UPDATE_FREQ == 0:
-            epsilon_decay()
 
-
-def epsilon_move(agent):
+def epsilon_move(agent, epsilon):
     """
     get agent to play a move with epsilon chance of playing a random move
     :param agent:
-    :param epsilon:
-    :return:
+    :return: RUNNING_STATE of game after executing move
     """
 
-    if random.random() < EPSILON:
+    if random.random() < epsilon:
         return agent.play_random()
     else:
         return agent.play_move(agent.get_best_move())
 
 
-def epsilon_decay():
-    global EPSILON
-    EPSILON = EPSILON/2
+
 
 if __name__ == "__main__":
     # PARAMETERS
-    EPSILON = 1 / 5
-    EPSILON_UPDATE_FREQ = 100
+    GAMMA = 0.90
+    ALPHA = 0.01
     REWARDS = {
         GameStatus.DRAW: 0,
         GameStatus.P1_WIN: 1,
