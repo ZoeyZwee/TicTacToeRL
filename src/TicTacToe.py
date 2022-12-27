@@ -3,9 +3,9 @@ A file to play Tic Tac Toe :)
 """
 
 import numpy as np
-from enum import Enum
 
 
+# enum
 class GameStatus:
     DRAW = 0
     P1_WIN = 1
@@ -36,12 +36,42 @@ class Board:
         """
         self.board = board.copy()  # 0=free. 1=player1=X. 2=player2=O
 
+    @staticmethod
+    def from_string(init_string):
+        """
+        Recover the game board from a string. from_string(str(board)) should do nothing
+        :param init_string:
+        :return: Board specified by the string
+        """
+        arr = np.zeros((3,3), dtype=int)
+        lines = init_string.splitlines()
+        lines_no_dash = [lines[0], lines[2], lines[4]]  # remove lines that are ---------
+        for j, line in enumerate(lines_no_dash):
+            XO_inv = lambda c: 0 if c==" " else 1 if c=="X" else 2
+            arr[j] = [XO_inv(line[k]) for k in [0, 4, 8]]
+
+        return Board(board=arr)
+
+    @staticmethod
+    def to_digits(board):
+        acc = 0
+        for row in board:
+            for x in row:
+                acc = acc << 2
+                acc += x
+        return acc
+
     def play_move(self, pos, player):
         """
         player `player` played on square `pos`
         :param pos: # from 1-9 with ordering same as numpad
         :param player: 1 for p1, 2 for p2
         """
+        if pos not in [1,2,3,4,5,6,7,8,9]:
+            raise ValueError("position out of bounds in call to Board.play_move")
+        if player not in [1,2]:
+            raise ValueError("player id out of bounds in call to Board.play_move")
+
         row, col = idx_to_coords(pos)
         self.board[row][col] = player
         return self.running_state()
@@ -54,6 +84,11 @@ class Board:
         :param player: 1 for p1 (X), 2 for p2 (O)
         :return: An instance of Board where the move has been played
         """
+        if pos not in [1,2,3,4,5,6,7,8,9]:
+            raise ValueError("position out of bounds in call to Board.sim_move")
+        if player not in [1,2]:
+            raise ValueError("player id out of bounds in call to Board.sim_move")
+
         sim_board = self.copy()
         sim_board.play_move(pos, player)
         return sim_board
@@ -87,16 +122,18 @@ class Board:
 
     def equivs(self):
         """
-        Generate all boards which are equivalent to board
-        :return: list of board states after apply rotations and reflections
+        Generate all NUMPY boards which are equivalent to board
+        :return: list of numpy arrays, where each array is a transformation of self.board
         """
         r0 = self.board
         r1 = np.rot90(r0)
         r2 = np.rot90(r1)
         r3 = np.rot90(r2)
-        href = self.board[:, [2, 1, 0]]
-        vref = self.board[[2, 1, 0], :]
-        return [r0, r1, r2, r3, vref, href]
+        href = np.fliplr(self.board)
+        vref = np.flipud(self.board)
+        diag = self.board.T
+        diag2 = self.board[::-1,::-1].T
+        return [r0, r1, r2, r3, vref, href, diag, diag2]
 
     def get_legals(self):
         """
@@ -117,43 +154,35 @@ class Board:
     def __repr__(self):
         XO = [" ", "X", "O"]
         a = [XO[x] for x in np.nditer(self.board)]
-        str = (
+        s = (
             f"{a[0]} | {a[1]} | {a[2]}\n"
             f"{'-'*9}\n"
             f"{a[3]} | {a[4]} | {a[5]}\n"
             f"{'-' * 9}\n"
             f"{a[6]} | {a[7]} | {a[8]}"
         )
-        return str
+        return s
 
     def __hash__(self):
         """
-        find the "minimal" transformation of the current board, then hash the string representation
-        of that board. Minimal is defined using (<=) for strings.
-        transformations are rotation and reflection
+        hash all the equivalent boards, then take the "minimum" hash.
+        transformations are rotation and reflection (group of symmetries of a square)
         :return: hashed "minimal" transformation
         """
-        return min([hash(a.__str__()) for a in self.equivs()])
+
+        return hash(min([self.to_digits(b) for b in self.equivs()]))
 
     def __eq__(self, other):
         """
         check equality, up to rotational and reflection symmetry
-        :param other: board to compare against
-        :return: true if other is equal to self.board, or a reflection/rotation of self.board
+        :param other: Board to compare against
+        :return: true if other.board is a transformation of self.board
         """
-        # for each transformation, check if they are equal to other
-        # return true if any of those checks returned true
-        return np.any([np.all(other == a) for a in self.equivs()])
+        for a in self.equivs():
+            if self.to_digits(a) == self.to_digits(other.board):
+                return True
+        return False
 
     def __len__(self):
         return np.count_nonzero(self.board)
-
-
-if __name__ == "__main__":
-    test1 = Board()
-    test2 = Board()
-    test1.play_move(1,1)
-    test2.play_move(3,1)
-
-    print(np.any([np.all(test2.board == a) for a in test1.equivs()]))
 
