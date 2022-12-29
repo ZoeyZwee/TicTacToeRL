@@ -67,10 +67,8 @@ class Board:
         :param pos: # from 1-9 with ordering same as numpad
         :param player: 1 for p1, 2 for p2
         """
-        if pos not in [1,2,3,4,5,6,7,8,9]:
-            raise ValueError("position out of bounds in call to Board.play_move")
-        if player not in [1,2]:
-            raise ValueError("player id out of bounds in call to Board.play_move")
+        assert (pos in [1,2,3,4,5,6,7,8,9])
+        assert (player in [1,2])
 
         row, col = idx_to_coords(pos)
         self.board[row][col] = player
@@ -84,10 +82,8 @@ class Board:
         :param player: 1 for p1 (X), 2 for p2 (O)
         :return: An instance of Board where the move has been played
         """
-        if pos not in [1,2,3,4,5,6,7,8,9]:
-            raise ValueError("position out of bounds in call to Board.sim_move")
-        if player not in [1,2]:
-            raise ValueError("player id out of bounds in call to Board.sim_move")
+        assert (pos in [1,2,3,4,5,6,7,8,9])
+        assert (player in [1,2])
 
         sim_board = self.copy()
         sim_board.play_move(pos, player)
@@ -139,6 +135,7 @@ class Board:
         """
         :return: list of positions (1,2,3..9) indicating legal moves
         """
+
         return np.nonzero(self.get_flat() == 0)[0] + 1
 
     def get_flat(self):
@@ -146,7 +143,7 @@ class Board:
         :return: returns a "flat" representation of the board, where index 0 is position 1
         and index 8 is position 9
         """
-        return np.concatenate((self.board[2], self.board[1], self.board[0]))
+        return (np.flipud(self.board)).reshape(9)
 
     def copy(self):
         return Board(self.board)

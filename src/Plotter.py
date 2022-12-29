@@ -8,7 +8,7 @@ from collections import namedtuple
 
 Data = namedtuple("Data", ["data", "colour", "label"])
 
-class MCPlotter:
+class Plotter:
     def __init__(self, p1, p2):
         self.plt_init()
         # select plots
@@ -165,7 +165,7 @@ class MCPlotter:
                 value = self.p1.value[move]
                 self.opener_value[i].data.append(value)
 
-        if self.games_played % 500 == 0:
+        if self.games_played % 1000 == 0:
             self.make_plots()
 
     def make_plots(self):

@@ -1,8 +1,7 @@
 from TicTacToe import Board, GameStatus
-from MonteCarloAgent import MonteCarloAgent, play_match
-import random
+from Agent import MonteCarloAgent, TDAgent, play_match
 import json
-from MCPlotter import MCPlotter
+from Plotter import Plotter
 import numpy as np
 
 
@@ -37,30 +36,29 @@ def human_v_human():
     print("If player 4 won that means a draw and you both suck")
 
 
-def monte_v_monte():
+def __train_agents(p1, p2, p1_value_path, p2_value_path):
     """
-    Train two monte carlo AIs against each other.
-    Agent 1 is always X, Agent 2 is always O.
-    Init random Value Fn for both agents
-    :param
+    train two agents by playing 500,000 matches
+    p1 and p2 could theoretically be different agent types, though I haven't tested it yet
+    :param p1: Agent playing X
+    :param p2: Agent playing Y
+    :param p1_value_path: where to save value fn of p1
+    :param p2_value_path: where to save value fn of p2
     :return:
     """
 
     # learning params
-    epsilon = 0.01  # % chance of a random move. updated periodically after playing some number of games
+    epsilon = 0.01  # % chance of a random move
     gamma = 0.90  # decay rate for rewards
-    alpha = 0.02  # learning rate
+    alpha = 0.01  # learning rate
     games_played = 0
 
-
-    p1 = MonteCarloAgent(1)
-    p2 = MonteCarloAgent(2)
-    mcplot = MCPlotter(p1, p2)
+    plotter = Plotter(p1, p2)
 
     startermove = 1
 
     plot = False  # only plot if we've seen all the start states (plotter code breaks otherwise)
-    while games_played < 1_000_000:
+    while games_played < 500_000:
 
         # start with each opener evenly
         match startermove:
@@ -76,59 +74,36 @@ def monte_v_monte():
         games_played += 1
 
         # update value fns
-        p1.update_value(game_log, REWARDS[outcome], gamma=gamma, alpha=alpha)
-        p2.update_value(game_log, REWARDS[outcome], gamma=gamma, alpha=alpha)
+        # p1 trains on all its "afterstates", p2 on its "afterstates".
+        p1.update_value(game_log[::2], REWARDS[outcome], gamma=gamma, alpha=alpha)
+        p2.update_value(game_log[1::2], REWARDS[outcome], gamma=gamma, alpha=alpha)
 
         # logging and plotting
         if plot:
             openers = {1: "Corner", 2: "Side", 5: "Centre"}
-            mcplot.log_and_plot(outcome, opener=openers[startermove])
+            plotter.log_and_plot(outcome, opener=openers[startermove])
 
         # save value fn
-        if games_played % 500 == 0:
-            with open(f"MCValue.json", "w") as f:
-                print(f"saving value function... ({len(p1.value)} states seen, {games_played} games played)")
+        if games_played % 1000 == 0:
+            print(f"saving value functions... ({len(p1.value) + len(p2.value)} states seen, {games_played} games played)")
+            with open(p1_value_path, "w") as f:
                 d = {str(board): val for board, val in p1.value.items()}
+                json.dump(d, f)
+            with open(p2_value_path, "w") as f:
+                d = {str(board): val for board, val in p2.value.items()}
                 json.dump(d, f)
 
 
-def inspect_value():
-    value_path = "D:\Programming\GithubRepos\TicTacToeRL\src\MCValue.json"
-    optimal_value_path = "D:\Programming\GithubRepos\TicTacToeRL\src\DPSolver.py"
-    board = Board()
-    p1 = MonteCarloAgent(1, board)
-    p2 = MonteCarloAgent(2, board)
+def train_TD():
+    p1 = TDAgent(1)
+    p2 = TDAgent(2)
+    __train_agents(p1, p2, "TDValueX.json", "TDValueO.json")
 
-    p1.load_value(value_path)
-    p2.load_value(value_path)
 
-    for startermove in [1, 2, 5]:
-        outcome, gamelog = play_match(p1, p2, epsilon=0, startermove=startermove)
-        for boardstate in gamelog:
-            print(f"value={p1.value[boardstate]}")
-            print(boardstate)
-            print("\n" * 3)
-
-    opt_agent = MonteCarloAgent(1, board)
-    try:
-        opt_agent.load_value(optimal_value_path)
-    except FileNotFoundError:
-        print("Couldn't load optimal value function")
-    else:
-        non_draws_missing = 0  # number of "winning" states not found in p1.value
-        wins_missing = 0
-        sq_error = 0
-        for state in opt_agent.value:
-            if state in p1.value:
-                sq_error += (p1.value[state]-opt_agent.value[state])**2
-            else:
-                non_draws_missing += (opt_agent.value[state] != 0)
-                wins_missing += (opt_agent.value[state] == 1) or (opt_agent.value[state] == -1)
-
-        rmse = np.sqrt((sq_error/len(p1.value)))
-        print(f"Among seen states, value function has average error (RMSE) of {rmse}")
-        print(f"Among {len(opt_agent.value)-len(p1.value)} unseen states, {non_draws_missing} do not result in a draw")
-
+def train_montecarlo():
+    p1 = MonteCarloAgent(1)
+    p2 = MonteCarloAgent(2)
+    __train_agents(p1, p2, "MCValueX.json", "MCValueO.json")
 
 
 if __name__ == "__main__":
@@ -141,10 +116,10 @@ if __name__ == "__main__":
 
     print("Welcome to TicTacToe")
     print("Please select an option...")
-    print("1: Human v Human")
-    print("2: MonteCarlo v MonteCarlo")
-    print("3: Inspect/test value function")
-    options = {1: human_v_human, 2: monte_v_monte, 3: inspect_value}
+    print("1: Play human vs human")
+    print("2: Train a MonteCarlo agent")
+    print("3: Train a TD(0) agent")
+    options = {1: human_v_human, 2: train_montecarlo, 3: train_TD}
     str_in = input()
     success = False
     while success is False:

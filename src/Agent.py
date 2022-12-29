@@ -9,7 +9,7 @@ import json
 
 def play_match(agent1, agent2, epsilon=0, startermove=None):
     """
-    Get two MonteCarloAgents to play against each other
+    Get two Agents to play against each other
     :param agent1: agent playing as X
     :param agent2: agent playing as O
     :param epsilon: chance for either agent to make a random move
@@ -27,7 +27,7 @@ def play_match(agent1, agent2, epsilon=0, startermove=None):
     if startermove is not None: # play chosen starter move
         status = agent1.play_move(startermove)
     else:
-        status = agent1.epsilon_best_move(1)
+        status = agent1.epsilon_best_move(epsilon)
     game_log.append(board.copy())
     player = agent2
 
@@ -40,7 +40,12 @@ def play_match(agent1, agent2, epsilon=0, startermove=None):
     return status, game_log
 
 
-class MonteCarloAgent:
+class Agent:
+    """
+    TicTacToe Agent. Can play, but cannot learn.
+    Load a value function with load_value().
+    If no value fn is loaded, the agent will generate a random value fn.
+    """
 
     def __init__(self, player_id, board=None):
         """
@@ -56,13 +61,15 @@ class MonteCarloAgent:
     def load_value(self, rpath):
         """
         Load a value function from a .json file at location rpath
-        :param rpath:
-        :return:
+        :param rpath: path to .json file
+        :return: self
         """
 
         with open(rpath, 'r') as f:
             data = json.load(f)
         self.value = {Board.from_string(k): v for k, v in data.items()}
+
+        return self
 
     def new_game(self, board=None):
         self.game = Board() if board is None else board
@@ -98,26 +105,26 @@ class MonteCarloAgent:
     def get_best_move(self):
         """
         Simulate all legal moves, decide which is best for us.
-        Positive value is good for p1.
-        Negative value is good for p2
+        Positive value is good for X
+        Negative value is good for O
         :return: # from 1-9 indicating the best move
         """
         best_value = None
         best_move = None
 
         def compare(val):
-            # see if val is better than the best move so far
+            # p1 wants to maximize value, p2 wants to minimize
             return val > best_value if self.player_id == 1 else val < best_value
 
         for move in self.game.get_legals():
             # simulate move to get value of resulting state
-            next_state = self.game.sim_move(move, self.player_id)
+            afterstate = self.game.sim_move(move, self.player_id)
 
             # add state to value fn on first visit
-            if next_state not in self.value.keys():
-                self.value[next_state] = random.uniform(-1, 1)
+            if afterstate not in self.value.keys():
+                self.value[afterstate] = random.uniform(-1, 1)
 
-            move_value = self.value[next_state]
+            move_value = self.value[afterstate]
 
             # update best_value, best_move
             if best_value is None:
@@ -129,6 +136,49 @@ class MonteCarloAgent:
 
         return best_move
 
+
+class TDAgent(Agent):
+    """
+    An agent that learns w/ TD(0).
+    """
+    def update_value(self, afterstates, reward, gamma, alpha):
+        """
+        Update the value function using TD(0) update for value fn.
+        Doesn't need to be online since states are never re-visited during an episode
+
+        :param afterstates: list of Boards, corresponding to all the game states AFTER our agent has played
+        :param reward: +1 for p1 win, -1 for p2 win, 0 for draw
+        :param gamma: decay rate for rewards
+        :param alpha: learning rate
+        :return: None
+        """
+        # update value of last afterstate.
+        # if we played the final move, then the afterstate is a terminal state,
+        #   so we set the afterstate value to be *exactly* the transition reward
+        if afterstates[-1].running_state() != GameStatus.RUNNING:
+            self.value[afterstates[-1]] = reward
+        else:
+            # Future rewards are zero, so move value towards actual reward
+            expected_reward = self.value[afterstates[-1]]
+            self.value[afterstates[-1]] = expected_reward + alpha * (reward - expected_reward)
+
+        # remaining updates actually bootstrap towards the next afterstate
+        next_afterstate = afterstates[-1]  # start at the end, iterate backwards.
+        for afterstate in afterstates[-1::-1]:
+            if afterstate not in self.value.keys():
+                # sometimes states don't make it into our value function during play (usually due to random moves)
+                self.value[afterstate] = gamma*self.value[next_afterstate]
+            else:
+                # transition reward is zero, so TD-target is just estimate of future rewards
+                self.value[afterstate] = self.value[afterstate] + alpha*(gamma*self.value[next_afterstate]-self.value[afterstate])
+
+            next_afterstate = afterstate
+
+
+class MonteCarloAgent(Agent):
+    """
+    An agent that learns w/ MonteCarlo Control
+    """
     def update_value(self, states_visited, reward, gamma, alpha):
         """
         Update the value function using the bellman equation
@@ -138,12 +188,10 @@ class MonteCarloAgent:
         :param alpha: learning rate
         :return: None
         """
-        for i, state in enumerate(states_visited):
-            decay_steps = len(states_visited)-i-1  # on last move we have len(game)==i, and we want 0 decay
+        for decay_steps, state in enumerate(reversed(states_visited)):
             rtn = reward * gamma**decay_steps  # decayed future reward (i.e. return)
             if state not in self.value.keys():
-                # sometimes moves by the other player don't get initialized in our value fn
-                self.value[state] = random.uniform(-1, 1)
+                self.value[state] = rtn
             # incorporate trajectory into average
             self.value[state] = self.value[state] + alpha*(rtn-self.value[state])
 
@@ -153,13 +201,14 @@ if __name__ == "__main__":
     Examine and test the value function specified by value_path.
     Compare that value function with an optimal value function
     """
-    value_path = "D:\Programming\GithubRepos\TicTacToeRL\src\MCValue.json"
+    x_value_path = "D:\Programming\GithubRepos\TicTacToeRL\src\TDValueX.json"
+    o_value_path = "D:\Programming\GithubRepos\TicTacToeRL\src\TDValueO.json"
     optimal_value_path = "D:\Programming\GithubRepos\TicTacToeRL\src\DPValue.json"
-    p1 = MonteCarloAgent(1)
-    p2 = MonteCarloAgent(2)
-
-    p1.load_value(value_path)
-    p2.load_value(value_path)
+    p1 = Agent(1).load_value(x_value_path)
+    p2 = Agent(2).load_value(o_value_path)
+    jointvalue = p1.value | p2.value # merge the two value functions, for getting statistics
+    p1.value = jointvalue
+    p2.value = jointvalue
 
     for startermove in [1, 2, 5]:
         outcome, gamelog = play_match(p1, p2, epsilon=0, startermove=startermove)
@@ -168,35 +217,32 @@ if __name__ == "__main__":
             print(boardstate)
             print("\n" * 2)
 
-    opt_agent_X = MonteCarloAgent(1)
-    try:
-        opt_agent_X.load_value(optimal_value_path)
-    except FileNotFoundError:
-        print("Couldn't load optimal value function - file not found")
-    else:
-        non_draws_missing = 0  # number of "winning" states not found in p1.value
-        wins_missing = 0
-        sq_error = 0
-        for state in opt_agent_X.value:
-            if state in p1.value:
-                sq_error += (p1.value[state] - opt_agent_X.value[state]) ** 2
-            else:
-                non_draws_missing += (opt_agent_X.value[state] != 0)
-                wins_missing += (opt_agent_X.value[state] == 1) or (opt_agent_X.value[state] == -1)
+    opt_agent_X = Agent(1)
+    opt_agent_O = Agent(2)  # create an optimal "O" player
 
-        rmse = np.sqrt((sq_error / len(p1.value)))
-        print(f"Among seen states, value function has average error (RMSE) of {rmse:.3f}")
-        print(f"Among {len(opt_agent_X.value) - len(p1.value)} unseen states, {non_draws_missing} do not result in a draw")
-        print(f"Among {len(opt_agent_X.value) - len(p1.value)} unseen states, {non_draws_missing} are winning states")
-        print(f"For reference, there are 135 winning states (states where a player has won)")
-
-    # play out a game w/ learned agent vs optimal
-    opt_agent_O = MonteCarloAgent(2)  # create an optimal "O" player
+    opt_agent_X.load_value(optimal_value_path)
     opt_agent_O.value = opt_agent_X.value
 
+    terminals_missing = [0,0,0]  # number of [draws, X-win, O-win] states not found in p1.value
+    sq_error = 0
+    for state in opt_agent_X.value:
+        if state in p1.value:
+            sq_error += (p1.value[state] - opt_agent_X.value[state]) ** 2
+        else:
+            if (r := state.running_state()) in [0,1,2]:
+                terminals_missing[r] += 1
+
+    rmse = np.sqrt((sq_error / len(p1.value)))
+    print(f"Among seen states, value function has average error (RMSE) of {rmse:.3f}")
+    print(f"There are {len(opt_agent_X.value) - len(p1.value)} unseen states")
+    print(f"Of the unseen states, {sum(terminals_missing)} are terminal states.")
+    print(f"{terminals_missing[0]} are drawn states, {terminals_missing[1]} are X-wins, {terminals_missing[2]} are O-wins")
+    print(f"For reference, there exist 135 winning states (states where a player has won)")
+
+    # play out a game w/ learned agent vs optimal
     p_vs_opt = []
     opt_vs_p = []
-    strmap = lambda o: "X win" if o==1 else "O win" if o==2 else "Draw"
+    strmap = lambda a: "X win" if a==1 else "O win" if a==2 else "Draw"
     for startermove in [1,5,2]:
         outcome, _ = play_match(p1, opt_agent_O, startermove=startermove)
         p_vs_opt.append(strmap(outcome))
@@ -220,12 +266,11 @@ if __name__ == "__main__":
     p_scores_O = np.array([0,0,0])
     opt_scores_O = np.array([0,0,0])
 
-
     for i in range(1000):
 
         # init blank agents (init every time since policy is stationary if states have been seen before)
-        rand_agent_X = MonteCarloAgent(1)
-        rand_agent_O = MonteCarloAgent(2)
+        rand_agent_X = Agent(1)
+        rand_agent_O = Agent(2)
 
         # player, X
         outcome, _ = play_match(p1, rand_agent_O)
