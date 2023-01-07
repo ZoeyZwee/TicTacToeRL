@@ -8,6 +8,7 @@ from collections import namedtuple
 
 Data = namedtuple("Data", ["data", "colour", "label"])
 
+
 class Plotter:
     def __init__(self, p1, p2):
         self.plt_init()

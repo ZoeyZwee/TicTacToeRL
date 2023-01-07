@@ -1,5 +1,5 @@
 from TicTacToe import Board, GameStatus
-from Agent import MonteCarloAgent, TDAgent, play_match
+from Agent import *
 import json
 from Plotter import Plotter
 import numpy as np
@@ -75,8 +75,8 @@ def __train_agents(p1, p2, p1_value_path, p2_value_path):
 
         # update value fns
         # p1 trains on all its "afterstates", p2 on its "afterstates".
-        p1.update_value(game_log[::2], REWARDS[outcome], gamma=gamma, alpha=alpha)
-        p2.update_value(game_log[1::2], REWARDS[outcome], gamma=gamma, alpha=alpha)
+        p1.train(game_log[::2], REWARDS[outcome], gamma=gamma, alpha=alpha)
+        p2.train(game_log[1::2], REWARDS[outcome], gamma=gamma, alpha=alpha)
 
         # logging and plotting
         if plot:
@@ -101,8 +101,8 @@ def train_TD():
 
 
 def train_montecarlo():
-    p1 = MonteCarloAgent(1)
-    p2 = MonteCarloAgent(2)
+    p1 = MCAgent(1)
+    p2 = MCAgent(2)
     __train_agents(p1, p2, "MCValueX.json", "MCValueO.json")
 
 
